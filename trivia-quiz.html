@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiz Builder</title>
+<style>
+  :root{
+    --bg:#0E0B16;
+    --surface:#1B1530;
+    --surface-2:#241C3D;
+    --amber:#FFC94D;
+    --violet:#7C5CFF;
+    --coral:#FF5468;
+    --text:#F6F4FB;
+    --muted:#9A93B5;
+    --ring-circ: 276.46;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 12% -10%, color-mix(in srgb, var(--violet) 22%, transparent), transparent 50%),
+      radial-gradient(circle at 110% 110%, color-mix(in srgb, var(--amber) 14%, transparent), transparent 50%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    transition:background 0.4s ease;
+  }
+  .display{
+    font-family:'Archivo Black','Arial Black',system-ui,sans-serif;
+    line-height:1.05;
+    letter-spacing:-0.01em;
+    margin:0;
+  }
+  .eyebrow{
+    font-size:12px; font-weight:700; letter-spacing:0.16em; text-transform:uppercase;
+    color:var(--amber); margin-bottom:14px;
+  }
+  #app{width:100%; max-width:600px;}
+  .screen{display:none; flex-direction:column; align-items:flex-start;}
+  .screen.active{display:flex; animation:fadeUp 0.4s ease;}
+  @keyframes fadeUp{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);}}
+  .sub{color:var(--muted); font-size:15px; margin:14px 0 28px; max-width:420px; line-height:1.55;}
+
+  /* ---------- Form elements ---------- */
+  .field-label{
+    font-size:11.5px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;
+    color:var(--muted); margin-bottom:7px; display:block;
+  }
+  .field{width:100%; margin-bottom:16px;}
+  input[type="text"], input[type="number"], textarea{
+    width:100%; background:var(--surface); border:2px solid var(--surface-2); border-radius:12px;
+    padding:12px 14px; color:var(--text); font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:14.5px;
+    outline:none; transition:border-color 0.15s ease;
+  }
+  input::placeholder, textarea::placeholder{color:var(--muted); opacity:0.7;}
+  input:focus, textarea:focus{border-color:var(--violet);}
+  input.invalid, textarea.invalid{border-color:var(--coral);}
+  textarea{resize:vertical; min-height:64px; font-family:inherit; line-height:1.45;}
+
+  .btn-primary{
+    appearance:none; border:none; cursor:pointer; background:var(--amber); color:#1A1306;
+    font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-weight:800; font-size:15px; padding:14px 30px;
+    border-radius:12px; transition:transform 0.15s ease;
+  }
+  .btn-primary:hover{transform:translateY(-2px);}
+  .btn-primary:disabled{opacity:0.4; cursor:not-allowed; transform:none;}
+  .btn-primary:focus-visible{outline:3px solid var(--violet); outline-offset:3px;}
+
+  .btn-secondary{
+    appearance:none; border:2px solid var(--surface-2); background:transparent; color:var(--text);
+    font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-weight:700; font-size:14px; padding:12px 22px;
+    border-radius:12px; cursor:pointer; transition:border-color 0.15s ease;
+  }
+  .btn-secondary:hover{border-color:var(--muted);}
+  .btn-secondary:focus-visible{outline:3px solid var(--violet); outline-offset:3px;}
+
+  .btn-row{display:flex; gap:12px; flex-wrap:wrap;}
+  .nav-row{display:flex; justify-content:space-between; align-items:center; width:100%; margin-top:22px;}
+  .nav-row .spacer{flex:1;}
+
+  /* ---------- Step 1: count ---------- */
+  #screen-count{align-items:center; text-align:center; padding-top:6vh;}
+  #count-input{font-size:30px; font-weight:800; text-align:center; width:130px; padding:14px; margin:6px 0 26px;}
+
+  /* ---------- Step 2: theme ---------- */
+  #screen-theme{width:100%; align-items:stretch;}
+  .theme-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px; width:100%; margin-bottom:8px;}
+  .theme-card{
+    display:flex; flex-direction:column; gap:12px; background:var(--surface);
+    border:2px solid var(--surface-2); border-radius:14px; padding:16px; cursor:pointer;
+    align-items:flex-start; transition:border-color 0.15s ease;
+  }
+  .theme-card.selected{border-color:var(--amber);}
+  .theme-card:focus-visible{outline:3px solid var(--violet); outline-offset:2px;}
+  .swatch-row{display:flex; gap:6px;}
+  .swatch-row i{width:18px; height:18px; border-radius:50%; display:block;}
+  .theme-name{font-size:13px; font-weight:700; color:var(--text);}
+
+  /* ---------- Step 3: question builder ---------- */
+  #screen-question{width:100%;}
+  .builder-card{
+    width:100%; background:var(--surface); border:2px solid var(--surface-2);
+    border-radius:16px; padding:22px;
+  }
+  .step-label{
+    font-size:12.5px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase;
+    color:var(--muted); margin-bottom:16px;
+  }
+  .step-label .cur{color:var(--text);}
+  .opt-row{display:flex; align-items:center; gap:10px; margin-bottom:10px;}
+  .opt-letter-badge{
+    flex:none; width:34px; height:34px; border-radius:50%; background:var(--surface-2);
+    display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px;
+    color:var(--muted);
+  }
+  .ans-toggles{display:flex; gap:10px; margin-bottom:18px;}
+  .ans-toggle{
+    flex:1; appearance:none; border:2px solid var(--surface-2); background:var(--bg);
+    color:var(--muted); font-weight:800; font-size:14px; padding:10px 0; border-radius:10px;
+    cursor:pointer; transition:border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  }
+  .ans-toggle.active{border-color:var(--amber); background:rgba(255,201,77,0.12); color:var(--amber);}
+  .ans-toggle:focus-visible{outline:3px solid var(--violet); outline-offset:2px;}
+  .builder-error{color:var(--coral); font-size:13px; margin:4px 0 0; display:none;}
+
+  /* ---------- Step 4: review ---------- */
+  #screen-review{width:100%;}
+  .review-list{width:100%; margin:6px 0 8px; max-height:260px; overflow-y:auto;}
+  .review-row{
+    display:flex; gap:12px; padding:10px 0; border-bottom:1px solid var(--surface-2);
+    font-size:14px;
+  }
+  .review-row:last-child{border-bottom:none;}
+  .review-num{flex:none; color:var(--amber); font-weight:800; width:34px;}
+  .review-text{color:var(--text); opacity:0.85;}
+
+  /* ---------- Intro screen ---------- */
+  #screen-intro{align-items:center; text-align:center; padding-top:8vh;}
+  #screen-intro .display{font-size:46px;}
+  .intro-circle{
+    width:84px; height:84px; border-radius:50%; background:var(--amber);
+    display:flex; align-items:center; justify-content:center; margin-top:8px;
+    animation:pulseRing 1.4s ease-out infinite;
+  }
+  @keyframes pulseRing{
+    0%{box-shadow:0 0 0 0 rgba(255,201,77,0.35);}
+    70%{box-shadow:0 0 0 18px rgba(255,201,77,0);}
+    100%{box-shadow:0 0 0 0 rgba(255,201,77,0);}
+  }
+  .intro-circle span{font-family:'Archivo Black','Arial Black',system-ui,sans-serif; font-size:30px; color:#1A1306;}
+  .intro-caption{margin-top:14px; font-size:12.5px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted);}
+
+  /* ---------- Player ---------- */
+  #screen-quiz{width:100%;}
+  .segments{display:flex; gap:5px; width:100%; margin-bottom:18px; transition:opacity 0.4s ease;}
+  .seg{flex:1; height:4px; border-radius:2px; background:var(--surface-2); overflow:hidden;}
+  .seg-fill{height:100%; width:0%; background:var(--amber); border-radius:2px;}
+  .meta-row{width:100%; display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; transition:opacity 0.4s ease;}
+  .q-label{font-size:13px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); display:flex; align-items:center; gap:8px;}
+  .q-label .num{color:var(--text);}
+  .live-dot{width:7px; height:7px; border-radius:50%; background:var(--amber); animation:dotPulse 1.4s ease-in-out infinite;}
+  @keyframes dotPulse{0%,100%{opacity:1;} 50%{opacity:0.25;}}
+  .indicator-wrap{position:relative; width:54px; height:54px; flex:none; transition:opacity 0.4s ease;}
+  .timer-ring{width:54px; height:54px; transform:rotate(-90deg);}
+  .ring-bg{fill:none; stroke:var(--surface-2); stroke-width:8;}
+  .ring-fg{fill:none; stroke:var(--amber); stroke-width:8; stroke-linecap:round; stroke-dasharray:276.46; stroke-dashoffset:0;}
+  .indicator-wrap.danger .ring-fg{stroke:var(--coral);}
+  .timer-num{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:16px;}
+  .indicator-wrap.danger .timer-num{color:var(--coral);}
+  .check-badge{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center; border-radius:50%;
+    background:rgba(255,201,77,0.14); color:var(--amber); font-size:20px; font-weight:800;
+    opacity:0; transform:scale(0.7); transition:opacity 0.25s ease, transform 0.25s ease;
+  }
+  .check-badge.show{opacity:1; transform:scale(1);}
+  #quiz-card{
+    width:100%; border-radius:20px;
+    transition:opacity 0.32s ease, transform 0.32s ease, box-shadow 0.6s ease;
+    box-shadow:0 0 0 0 transparent;
+  }
+  #quiz-card.transition-out{opacity:0; transform:translateY(-8px);}
+  #quiz-card.lit{box-shadow:0 0 50px 10px color-mix(in srgb, var(--violet) 18%, transparent);}
+  .question{font-size:23px; font-weight:700; line-height:1.4; margin:0 0 22px; min-height:2.8em;}
+  .question.typing-cursor::after{
+    content:"|"; display:inline-block; margin-left:2px; color:var(--amber);
+    animation:blink 0.85s steps(1) infinite;
+  }
+  @keyframes blink{50%{opacity:0;}}
+  .options{display:flex; flex-direction:column; gap:11px; width:100%;}
+  .option{
+    display:flex; align-items:center; gap:12px; background:var(--surface); border:2px solid var(--surface-2);
+    border-radius:14px; padding:15px 16px; font-size:14.5px; font-weight:600;
+    opacity:0; transform:translateX(-60px);
+    transition:opacity 0.45s cubic-bezier(.16,1,.3,1), transform 0.45s cubic-bezier(.16,1,.3,1),
+               box-shadow 0.35s ease, border-color 0.25s ease, background 0.25s ease;
+  }
+  .option.from-right{transform:translateX(60px);}
+  .option.show{opacity:1; transform:translateX(0);}
+  .opt-letter{
+
+    flex:none; width:30px; height:30px; border-radius:50%; background:var(--surface-2); display:flex;
+    align-items:center; justify-content:center; font-weight:800; font-size:13px; color:var(--muted);
+    transition:background 0.25s ease, color 0.25s ease;
+  }
+  .opt-text{transition:color 0.25s ease;}
+  .option.correct{
+    border-color:var(--amber); background:rgba(255,201,77,0.12);
+    box-shadow:0 0 26px 4px color-mix(in srgb, var(--amber) 45%, transparent);
+  }
+  .option.correct .opt-letter{background:var(--amber); color:#1A1306;}
+  .option.correct .opt-text{color:var(--amber);}
+  .option.muted{opacity:0.4;}
+  .reveal-panel{
+    width:100%; max-height:0; overflow:hidden; opacity:0;
+    transition:max-height 0.4s ease, opacity 0.4s ease, margin-top 0.4s ease;
+  }
+  .reveal-panel.show{max-height:260px; opacity:1; margin-top:18px;}
+  .reveal-banner{font-weight:800; font-size:14px; color:var(--amber); margin-bottom:8px; letter-spacing:0.02em;}
+  .explanation{color:var(--text); font-size:14.5px; line-height:1.55; margin:0 0 12px;}
+  .next-line{color:var(--muted); font-size:12.5px; margin:0;}
+  .next-line span{color:var(--amber); font-weight:700;}
+
+  /* ---------- Background video ---------- */
+  #bg-video{
+    position:fixed; inset:0; width:100%; height:100%; object-fit:cover;
+    z-index:0; opacity:0; transition:opacity 0.8s ease; pointer-events:none; background:#000;
+  }
+  #bg-video.show{opacity:1;}
+  #bg-scrim{
+    position:fixed; inset:0; z-index:1; pointer-events:none; opacity:0;
+    transition:opacity 0.8s ease;
+    background:
+      radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--bg) 40%, transparent), color-mix(in srgb, var(--bg) 88%, transparent) 75%),
+      color-mix(in srgb, var(--bg) 72%, transparent);
+    backdrop-filter:blur(2px);
+  }
+  #bg-scrim.show{opacity:1;}
+  body.has-video{background:var(--bg);}
+  #app{position:relative; z-index:2;}
+
+  /* ---------- Editable canvas (studio) ---------- */
+  .canvas-frame{
+    position:relative; width:100%; aspect-ratio:16/9; border-radius:16px; overflow:hidden;
+    background:
+      radial-gradient(circle at 18% 0%, color-mix(in srgb, var(--violet) 35%, transparent), transparent 55%),
+      radial-gradient(circle at 100% 100%, color-mix(in srgb, var(--amber) 22%, transparent), transparent 55%),
+      var(--surface);
+    border:2px solid var(--surface-2); margin-bottom:16px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .canvas-frame #studio-video{
+    position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; display:none;
+  }
+  .canvas-frame.has-video #studio-video{display:block;}
+  .canvas-scrim{position:absolute; inset:0; z-index:1; background:color-mix(in srgb, var(--bg) 45%, transparent); opacity:0; transition:opacity 0.4s ease;}
+  .canvas-frame.has-video .canvas-scrim{opacity:1;}
+  .canvas-content{
+    position:relative; z-index:2; width:100%; padding:8% 7%;
+    display:flex; flex-direction:column; align-items:center; text-align:center; gap:2.5%;
+  }
+  .ce-eyebrow{
+    font-size:clamp(9px,2.4vw,13px); font-weight:700; letter-spacing:0.16em; text-transform:uppercase;
+    color:var(--amber); outline:none; border-radius:6px; padding:2px 8px; transition:background 0.15s ease;
+  }
+  .ce-title{
+    font-family:'Archivo Black','Arial Black',system-ui,sans-serif;
+    font-size:clamp(24px,7vw,52px); line-height:1.04; color:var(--text);
+    outline:none; border-radius:8px; padding:2px 10px; transition:background 0.15s ease; max-width:100%;
+  }
+  .ce-sub{
+    font-size:clamp(11px,3vw,18px); color:var(--muted); font-weight:500;
+    outline:none; border-radius:6px; padding:2px 10px; transition:background 0.15s ease;
+  }
+  [contenteditable="true"]:hover{background:color-mix(in srgb, var(--text) 8%, transparent);}
+  [contenteditable="true"]:focus{background:color-mix(in srgb, var(--text) 12%, transparent); box-shadow:0 0 0 2px var(--violet);}
+  .canvas-hint{
+    position:absolute; bottom:10px; right:12px; z-index:3; font-size:11px; font-weight:600;
+    color:var(--muted); background:color-mix(in srgb, var(--bg) 70%, transparent); padding:4px 9px; border-radius:8px;
+  }
+  .studio-controls{display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:10px;}
+  .upload-btn{
+    display:inline-flex; align-items:center; gap:8px; background:var(--surface); border:2px dashed var(--surface-2);
+    color:var(--text); font-weight:700; font-size:14px; padding:12px 20px; border-radius:12px; cursor:pointer;
+    transition:border-color 0.15s ease;
+  }
+  .upload-btn:hover{border-color:var(--violet);}
+  .upload-btn input[type="file"]{display:none;}
+  .studio-note{color:var(--muted); font-size:12.5px; line-height:1.5; margin:0 0 18px; max-width:460px;}
+
+  /* ---------- Thank-you screen ---------- */
+  #screen-thankyou{align-items:center; text-align:center; padding-top:9vh;}
+  #screen-thankyou .display{font-size:42px; margin-bottom:6px;}
+
+  @media (prefers-reduced-motion: reduce){
+    .intro-circle{animation:none;}
+    .live-dot{animation:none;}
+    .option{transition:opacity 0.2s linear !important; transform:none !important;}
+    .question.typing-cursor::after{animation:none;}
+    #quiz-card{transition:none; box-shadow:none !important;}
+    .screen.active{animation:none;}
+  }
+</style>
+</head>
+<body>
+
+<video id="bg-video" playsinline loop></video>
+<div id="bg-scrim"></div>
+
+<div id="app">
+
+  <!-- Step 1: how many questions -->
+  <section id="screen-count" class="screen active">
+    <div class="eyebrow">Quiz Builder &middot; Step 1 of 3</div>
+    <h1 class="display" style="font-size:38px;">How many questions?</h1>
+    <p class="sub">Pick how many questions your quiz will have. You'll fill in each one next.</p>
+    <input type="number" id="count-input" min="1" max="20" placeholder="5">
+    <div class="btn-row">
+      <button class="btn-primary" id="btn-count-continue">Continue</button>
+    </div>
+  </section>
+
+  <!-- Step 2: theme template -->
+  <section id="screen-theme" class="screen">
+    <div class="eyebrow">Quiz Builder &middot; Step 2 of 3</div>
+    <h1 class="display" style="font-size:34px;">Pick a theme</h1>
+    <p class="sub">This sets the colors for your question screens and the intro/results slides. You can preview each one live.</p>
+    <div class="theme-grid" id="theme-grid"></div>
+    <div class="btn-row" style="margin-top:8px;">
+      <button class="btn-primary" id="btn-theme-continue">Continue</button>
+    </div>
+  </section>
+
+  <!-- Step 3: question builder (re-rendered per step) -->
+  <section id="screen-question" class="screen">
+    <div class="eyebrow">Quiz Builder &middot; Step 3 of 3</div>
+    <div class="builder-card">
+      <div class="step-label">Question <span class="cur" id="sq-num">1</span> of <span id="sq-total">1</span></div>
+
+      <div class="field">
+        <span class="field-label">Question</span>
+        <textarea id="q-input" placeholder="Type your question here"></textarea>
+      </div>
+
+      <span class="field-label">Answer Options</span>
+      <div class="opt-row"><div class="opt-letter-badge">A</div><input type="text" id="opt-input-0" placeholder="Option A"></div>
+      <div class="opt-row"><div class="opt-letter-badge">B</div><input type="text" id="opt-input-1" placeholder="Option B"></div>
+      <div class="opt-row"><div class="opt-letter-badge">C</div><input type="text" id="opt-input-2" placeholder="Option C"></div>
+      <div class="opt-row"><div class="opt-letter-badge">D</div><input type="text" id="opt-input-3" placeholder="Option D"></div>
+
+      <span class="field-label">Correct Answer</span>
+      <div class="ans-toggles" id="ans-toggles">
+        <button class="ans-toggle" data-idx="0">A</button>
+        <button class="ans-toggle" data-idx="1">B</button>
+        <button class="ans-toggle" data-idx="2">C</button>
+        <button class="ans-toggle" data-idx="3">D</button>
+      </div>
+
+      <div class="field">
+        <span class="field-label">Reason (why it's correct)</span>
+        <textarea id="reason-input" placeholder="Explain why this answer is correct (optional)"></textarea>
+      </div>
+
+      <p class="builder-error" id="builder-error">Please fill in the question, all four options, and select the correct answer.</p>
+
+      <div class="nav-row">
+        <button class="btn-secondary" id="btn-back">Back</button>
+        <div class="spacer"></div>
+        <button class="btn-primary" id="btn-next">Next Question</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Review before starting -->
+  <section id="screen-review" class="screen">
+    <div class="eyebrow">Ready To Go</div>
+    <h1 class="display" style="font-size:34px;">Review your quiz</h1>
+    <p class="sub"><span id="review-count">0</span> questions ready. Start the quiz, or go back to make a change.</p>
+    <div class="review-list" id="review-list"></div>
+    <div class="btn-row">
+      <button class="btn-secondary" id="btn-edit">Edit Questions</button>
+      <button class="btn-primary" id="btn-to-studio">Next: Design Intro</button>
+    </div>
+  </section>
+
+  <!-- Intro studio: editable title card + media upload -->
+  <section id="screen-studio" class="screen">
+    <div class="eyebrow">Intro Studio</div>
+    <h1 class="display" style="font-size:30px;">Design your title card</h1>
+    <p class="sub">Click the text on the card to edit it. Add an MP4 to play as your background video and soundtrack while the quiz runs.</p>
+
+    <div class="canvas-frame" id="canvas-frame">
+      <video id="studio-video" playsinline loop muted></video>
+      <div class="canvas-scrim"></div>
+      <div class="canvas-content">
+        <div class="ce-eyebrow" id="ce-eyebrow" contenteditable="true" spellcheck="false">GET READY</div>
+        <div class="ce-title" id="ce-title" contenteditable="true" spellcheck="false">TRIVIA SHOWDOWN</div>
+        <div class="ce-sub" id="ce-sub" contenteditable="true" spellcheck="false">Test your knowledge</div>
+      </div>
+      <div class="canvas-hint">✎ Click any text to edit</div>
+    </div>
+
+    <div class="studio-controls">
+      <label class="upload-btn" for="video-upload">
+        <span id="upload-label">＋ Upload MP4 background</span>
+        <input type="file" id="video-upload" accept="video/mp4,video/*">
+      </label>
+      <button class="btn-secondary" id="btn-remove-video" style="display:none;">Remove video</button>
+    </div>
+    <p class="studio-note" id="studio-note">No video added — the card will use your theme background. Tip: an MP4 with audio gives you music automatically.</p>
+
+    <div class="btn-row" style="margin-top:6px;">
+      <button class="btn-secondary" id="btn-studio-back">Back</button>
+      <button class="btn-primary" id="btn-start-quiz">Start Quiz</button>
+    </div>
+  </section>
+
+  <!-- Intro slide -->
+  <section id="screen-intro" class="screen">
+    <div class="eyebrow" id="intro-eyebrow">Get Ready</div>
+    <h1 class="display" id="intro-title">TRIVIA<br>SHOWDOWN</h1>
+    <p class="sub" id="intro-sub">Test your knowledge</p>
+    <div class="intro-circle"><span id="intro-countdown">3</span></div>
+    <div class="intro-caption">Starting automatically</div>
+  </section>
+
+  <!-- Quiz player -->
+  <section id="screen-quiz" class="screen">
+    <div class="segments" id="segments"></div>
+    <div class="meta-row">
+      <div class="q-label"><span class="live-dot"></span>QUESTION <span class="num" id="q-num">1</span> / <span id="q-total">1</span></div>
+      <div class="indicator-wrap" id="timer-wrap">
+        <svg viewBox="0 0 100 100" class="timer-ring">
+          <circle class="ring-bg" cx="50" cy="50" r="44"></circle>
+          <circle class="ring-fg" id="ring-fg" cx="50" cy="50" r="44"></circle>
+        </svg>
+        <div class="timer-num" id="timer-num">15</div>
+        <div class="check-badge" id="check-badge">&#10003;</div>
+      </div>
+    </div>
+    <div id="quiz-card">
+      <h2 class="question" id="question-text" aria-live="polite"></h2>
+      <div class="options" id="options"></div>
+      <div class="reveal-panel" id="reveal-panel">
+        <div class="reveal-banner">&#10003; ANSWER REVEALED</div>
+        <p class="explanation" id="explanation"></p>
+        <p class="next-line" id="next-line">Next question in <span id="next-count">10</span>s</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Thank you slide -->
+  <section id="screen-thankyou" class="screen">
+    <div class="eyebrow">Quiz Complete</div>
+    <h1 class="display">THANK YOU</h1>
+    <p class="sub">You made it through all <span id="ty-count">0</span> questions.</p>
+    <div class="btn-row">
+      <button class="btn-secondary" id="btn-replay">Watch Again</button>
+      <button class="btn-primary" id="btn-new-quiz">Build New Quiz</button>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  const THEMES = {
+    amber:  { name: "Midnight Amber", bg:"#0E0B16", surface:"#1B1530", surface2:"#241C3D", accent:"#FFC94D", secondary:"#7C5CFF", text:"#F6F4FB", muted:"#9A93B5", danger:"#FF5468" },
+    teal:   { name: "Ocean Teal",     bg:"#081B22", surface:"#0E2A33", surface2:"#123642", accent:"#22D3C5", secondary:"#3A7CA5", text:"#EAF6F6", muted:"#7FA7AC", danger:"#FF6B6B" },
+    cherry: { name: "Cherry Bold",    bg:"#1A0A0E", surface:"#2A1217", surface2:"#371720", accent:"#FF5D73", secondary:"#5A6FD8", text:"#FCF6F5", muted:"#B98A90", danger:"#FFB454" },
+    forest: { name: "Forest Moss",    bg:"#0B1410", surface:"#142219", surface2:"#1B2E21", accent:"#8FD14F", secondary:"#3F7A4D", text:"#F1F7EE", muted:"#8FAE93", danger:"#FF7A5C" }
+  };
+
+  const QUESTION_PHASE = 15000;
+  const EXPLAIN_WITH_REASON = 10000;
+  const EXPLAIN_NO_REASON = 4000;
+  const TYPE_CHAR_DELAY = 38;
+  const RING_CIRC = 276.46;
+
+  const state = { count: 0, themeKey: "amber", step: 0, questions: [] };
+  let qIndex = 0, phaseStart = 0, rafId = null, revealed = false;
+  let typeTimeoutId = null, entranceTimeoutId = null, currentExplainDuration = EXPLAIN_WITH_REASON;
+
+  const screens = {};
+  document.querySelectorAll(".screen").forEach(s => screens[s.id.replace("screen-", "")] = s);
+  function showScreen(name){
+    Object.values(screens).forEach(s => s.classList.remove("active"));
+    screens[name].classList.add("active");
+  }
+
+  function escapeHtml(str){
+    const d = document.createElement("div");
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  /* ---------------- Theme ---------------- */
+  function applyTheme(key){
+    const t = THEMES[key];
+    const root = document.documentElement.style;
+    root.setProperty("--bg", t.bg);
+    root.setProperty("--surface", t.surface);
+    root.setProperty("--surface-2", t.surface2);
+    root.setProperty("--amber", t.accent);
+    root.setProperty("--violet", t.secondary);
+    root.setProperty("--text", t.text);
+    root.setProperty("--muted", t.muted);
+    root.setProperty("--coral", t.danger);
+    state.themeKey = key;
+  }
+
+  function buildThemeGrid(){
+    const grid = document.getElementById("theme-grid");
+    grid.innerHTML = "";
+    Object.keys(THEMES).forEach(key => {
+      const t = THEMES[key];
+      const card = document.createElement("button");
+      card.className = "theme-card" + (key === state.themeKey ? " selected" : "");
+      card.type = "button";
+      card.dataset.theme = key;
+      card.innerHTML = `
+        <span class="swatch-row">
+          <i style="background:${t.accent}"></i>
+          <i style="background:${t.secondary}"></i>
+          <i style="background:${t.bg}; border:1px solid ${t.surface2}"></i>
+        </span>
+        <span class="theme-name">${t.name}</span>`;
+      card.addEventListener("click", () => {
+        applyTheme(key);
+        document.querySelectorAll(".theme-card").forEach(c => c.classList.remove("selected"));
+        card.classList.add("selected");
+      });
+      grid.appendChild(card);
+    });
+  }
+
+  /* ---------------- Step 1: count ---------------- */
+  document.getElementById("btn-count-continue").addEventListener("click", confirmCount);
+  document.getElementById("count-input").addEventListener("keydown", e => { if (e.key === "Enter") confirmCount(); });
+  function confirmCount(){
+    let val = parseInt(document.getElementById("count-input").value, 10);
+    if (isNaN(val) || val < 1) val = 1;
+    if (val > 20) val = 20;
+    state.count = val;
+    state.questions = Array.from({ length: val }, () => ({ q: "", options: ["", "", "", ""], correct: null, reason: "" }));
+    showScreen("theme");
+  }
+
+  /* ---------------- Step 2: theme ---------------- */
+  document.getElementById("btn-theme-continue").addEventListener("click", () => {
+    state.step = 0;
+    showScreen("question");
+    renderQuestionStep(0);
+  });
+
+  /* ---------------- Step 3: question builder ---------------- */
+  document.querySelectorAll(".ans-toggle").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const idx = parseInt(btn.dataset.idx, 10);
+      state.questions[state.step].correct = idx;
+      document.querySelectorAll(".ans-toggle").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+    });
+  });
+
+  function renderQuestionStep(i){
+    const q = state.questions[i];
+    document.getElementById("sq-num").textContent = i + 1;
+    document.getElementById("sq-total").textContent = state.count;
+    document.getElementById("q-input").value = q.q;
+    for (let k = 0; k < 4; k++) document.getElementById("opt-input-" + k).value = q.options[k];
+    document.getElementById("reason-input").value = q.reason;
+    document.querySelectorAll(".ans-toggle").forEach((btn, idx) => btn.classList.toggle("active", q.correct === idx));
+    document.getElementById("q-input").classList.remove("invalid");
+    for (let k = 0; k < 4; k++) document.getElementById("opt-input-" + k).classList.remove("invalid");
+    document.getElementById("builder-error").style.display = "none";
+    document.getElementById("btn-back").style.visibility = i === 0 ? "hidden" : "visible";
+    document.getElementById("btn-next").textContent = i === state.count - 1 ? "Review Quiz" : "Next Question";
+  }
+
+  function saveCurrentStep(){
+    const q = state.questions[state.step];
+    q.q = document.getElementById("q-input").value.trim();
+    for (let k = 0; k < 4; k++) q.options[k] = document.getElementById("opt-input-" + k).value.trim();
+    q.reason = document.getElementById("reason-input").value.trim();
+  }
+
+  function validateStep(){
+    const qText = document.getElementById("q-input").value.trim();
+    const opts = [0, 1, 2, 3].map(k => document.getElementById("opt-input-" + k).value.trim());
+    const correct = state.questions[state.step].correct;
+    let valid = true;
+
+    document.getElementById("q-input").classList.toggle("invalid", !qText);
+    if (!qText) valid = false;
+    opts.forEach((o, k) => {
+      const el = document.getElementById("opt-input-" + k);
+      el.classList.toggle("invalid", !o);
+      if (!o) valid = false;
+    });
+    if (correct === null || correct === undefined) valid = false;
+
+    document.getElementById("builder-error").style.display = valid ? "none" : "block";
+    return valid;
+  }
+
+  document.getElementById("btn-next").addEventListener("click", () => {
+    if (!validateStep()) return;
+    saveCurrentStep();
+    if (state.step === state.count - 1) {
+      goReview();
+    } else {
+      state.step++;
+      renderQuestionStep(state.step);
+    }
+  });
+
+  document.getElementById("btn-back").addEventListener("click", () => {
+    saveCurrentStep();
+    if (state.step > 0) {
+      state.step--;
+      renderQuestionStep(state.step);
+    }
+  });
+
+  /* ---------------- Review ---------------- */
+  function goReview(){
+    showScreen("review");
+    document.getElementById("review-count").textContent = state.count;
+    const list = document.getElementById("review-list");
+    list.innerHTML = "";
+    state.questions.forEach((q, i) => {
+      const row = document.createElement("div");
+      row.className = "review-row";
+      row.innerHTML = `<span class="review-num">Q${i + 1}</span><span class="review-text">${escapeHtml(q.q)}</span>`;
+      list.appendChild(row);
+    });
+  }
+
+  document.getElementById("btn-edit").addEventListener("click", () => {
+    state.step = state.count - 1;
+    showScreen("question");
+    renderQuestionStep(state.step);
+  });
+
+  /* ---------------- Intro studio: media + editable card ---------------- */
+  let videoURL = null;
+  const bgVideo = document.getElementById("bg-video");
+  const studioVideo = document.getElementById("studio-video");
+
+  document.getElementById("btn-to-studio").addEventListener("click", () => {
+    showScreen("studio");
+  });
+
+  document.getElementById("btn-studio-back").addEventListener("click", () => {
+    goReview();
+  });
+
+  document.getElementById("video-upload").addEventListener("change", (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (videoURL) URL.revokeObjectURL(videoURL);
+    videoURL = URL.createObjectURL(file);
+
+    studioVideo.src = videoURL;
+    studioVideo.play().catch(() => {});
+    document.getElementById("canvas-frame").classList.add("has-video");
+
+    bgVideo.src = videoURL;
+
+    document.getElementById("upload-label").textContent = "✓ " + (file.name.length > 24 ? file.name.slice(0, 22) + "…" : file.name);
+    document.getElementById("btn-remove-video").style.display = "inline-block";
+    document.getElementById("studio-note").textContent = "Video added. Its audio will play as the soundtrack once the quiz starts.";
+  });
+
+  document.getElementById("btn-remove-video").addEventListener("click", () => {
+    if (videoURL) URL.revokeObjectURL(videoURL);
+    videoURL = null;
+    studioVideo.removeAttribute("src");
+    studioVideo.load();
+    bgVideo.removeAttribute("src");
+    bgVideo.load();
+    document.getElementById("canvas-frame").classList.remove("has-video");
+    document.getElementById("video-upload").value = "";
+    document.getElementById("upload-label").textContent = "＋ Upload MP4 background";
+    document.getElementById("btn-remove-video").style.display = "none";
+    document.getElementById("studio-note").textContent = "No video added — the card will use your theme background. Tip: an MP4 with audio gives you music automatically.";
+  });
+
+  function cleanText(el){ return (el.textContent || "").replace(/\s+/g, " ").trim(); }
+
+  document.getElementById("btn-start-quiz").addEventListener("click", () => {
+    // Carry the edited card text into the intro slide
+    const eb = cleanText(document.getElementById("ce-eyebrow")) || "Get Ready";
+    const title = cleanText(document.getElementById("ce-title")) || "Trivia Showdown";
+    const sub = cleanText(document.getElementById("ce-sub"));
+    document.getElementById("intro-eyebrow").textContent = eb;
+    document.getElementById("intro-title").textContent = title;
+    document.getElementById("intro-sub").textContent = sub;
+    document.getElementById("intro-sub").style.display = sub ? "block" : "none";
+
+    // Start the background video WITH sound — this click is the user gesture browsers require
+    if (videoURL){
+      bgVideo.muted = false;
+      bgVideo.volume = 1;
+      bgVideo.currentTime = 0;
+      bgVideo.classList.add("show");
+      document.getElementById("bg-scrim").classList.add("show");
+      document.body.classList.add("has-video");
+      bgVideo.play().catch(() => {
+        // If unmuted autoplay is blocked, fall back to muted playback so the video still shows
+        bgVideo.muted = true;
+        bgVideo.play().catch(() => {});
+      });
+    }
+
+    showScreen("intro");
+    startIntroCountdown();
+  });
+
+  /* ---------------- Intro auto-countdown ---------------- */
+  let introTimer = null;
+  function startIntroCountdown(){
+    let n = 3;
+    document.getElementById("intro-countdown").textContent = n;
+    clearInterval(introTimer);
+    introTimer = setInterval(() => {
+      n--;
+      if (n <= 0) {
+        clearInterval(introTimer);
+        beginQuiz();
+      } else {
+        document.getElementById("intro-countdown").textContent = n;
+      }
+    }, 1000);
+  }
+
+  /* ---------------- Player ---------------- */
+  function buildSegments(){
+    const wrap = document.getElementById("segments");
+    wrap.innerHTML = "";
+    state.questions.forEach((_, i) => {
+      const seg = document.createElement("div");
+      seg.className = "seg";
+      seg.innerHTML = `<div class="seg-fill" id="seg-fill-${i}"></div>`;
+      wrap.appendChild(seg);
+    });
+  }
+
+  function beginQuiz(){
+    qIndex = 0;
+    document.getElementById("q-total").textContent = state.count;
+    buildSegments();
+    showScreen("quiz");
+    loadQuestion(0);
+  }
+
+  function loadQuestion(i){
+    revealed = false;
+    const q = state.questions[i];
+    currentExplainDuration = q.reason ? EXPLAIN_WITH_REASON : EXPLAIN_NO_REASON;
+
+    clearTimeout(typeTimeoutId);
+    clearTimeout(entranceTimeoutId);
+    cancelAnimationFrame(rafId);
+
+    document.getElementById("q-num").textContent = i + 1;
+    document.getElementById("segments").style.opacity = 0.35;
+    document.querySelector(".meta-row").style.opacity = 0.35;
+    document.getElementById("timer-wrap").style.opacity = 0;
+    document.getElementById("timer-wrap").classList.remove("danger");
+    document.getElementById("check-badge").classList.remove("show");
+    document.querySelector(".timer-ring").style.opacity = 1;
+    document.getElementById("timer-num").style.opacity = 1;
+    document.getElementById("quiz-card").classList.remove("lit");
+    document.getElementById("reveal-panel").classList.remove("show");
+
+    for (let k = 0; k < i; k++){
+      const el = document.getElementById("seg-fill-" + k);
+      if (el) el.style.width = "100%";
+    }
+    document.getElementById("seg-fill-" + i).style.width = "0%";
+
+    const optsEl = document.getElementById("options");
+    optsEl.innerHTML = "";
+    q.options.forEach((opt, idx) => {
+      const card = document.createElement("div");
+      card.className = "option" + (idx % 2 === 1 ? " from-right" : "");
+      card.innerHTML = `<span class="opt-letter">${"ABCD"[idx]}</span><span class="opt-text">${escapeHtml(opt)}</span>`;
+      optsEl.appendChild(card);
+    });
+
+    const qEl = document.getElementById("question-text");
+    qEl.textContent = "";
+    qEl.classList.add("typing-cursor");
+    typeQuestion(q.q, 0, () => {
+      qEl.classList.remove("typing-cursor");
+      document.getElementById("segments").style.opacity = 1;
+      document.querySelector(".meta-row").style.opacity = 1;
+      revealOptionsThenCountdown();
+    });
+  }
+
+  function typeQuestion(text, idx, done){
+    const qEl = document.getElementById("question-text");
+    qEl.textContent = text.slice(0, idx + 1);
+    if (idx + 1 < text.length){
+      typeTimeoutId = setTimeout(() => typeQuestion(text, idx + 1, done), TYPE_CHAR_DELAY);
+    } else {
+      typeTimeoutId = setTimeout(done, 300);
+    }
+  }
+
+  function revealOptionsThenCountdown(){
+    const cards = document.querySelectorAll(".option");
+    const STAGGER = 480; // each option lands (~450ms slide) before the next begins
+    cards.forEach((card, idx) => {
+      setTimeout(() => card.classList.add("show"), idx * STAGGER);
+    });
+    const totalEntrance = Math.max(0, cards.length - 1) * STAGGER + 650;
+    entranceTimeoutId = setTimeout(() => {
+      document.getElementById("quiz-card").classList.add("lit");
+      document.getElementById("timer-wrap").style.opacity = 1;
+      phaseStart = performance.now();
+      frame();
+    }, totalEntrance);
+  }
+
+  function frame(){
+    const now = performance.now();
+    const elapsed = now - phaseStart;
+    const total = QUESTION_PHASE + currentExplainDuration;
+
+    const segFrac = Math.min(1, elapsed / total);
+    document.getElementById("seg-fill-" + qIndex).style.width = segFrac * 100 + "%";
+
+    if (elapsed < QUESTION_PHASE){
+      const remaining = QUESTION_PHASE - elapsed;
+      const elapsedFrac = elapsed / QUESTION_PHASE;
+      document.getElementById("timer-num").textContent = Math.ceil(remaining / 1000);
+      document.getElementById("ring-fg").style.strokeDashoffset = RING_CIRC * elapsedFrac;
+      document.getElementById("timer-wrap").classList.toggle("danger", remaining <= 5000);
+    } else {
+      if (!revealed) revealAnswer();
+      if (currentExplainDuration > 0){
+        const explainElapsed = elapsed - QUESTION_PHASE;
+        const remaining = Math.max(0, currentExplainDuration - explainElapsed);
+        const nc = document.getElementById("next-count");
+        if (nc) nc.textContent = Math.ceil(remaining / 1000);
+      }
+    }
+
+    if (elapsed >= total){
+      advance();
+      return;
+    }
+    rafId = requestAnimationFrame(frame);
+  }
+
+  function revealAnswer(){
+    revealed = true;
+    const q = state.questions[qIndex];
+    document.querySelectorAll(".option").forEach((card, i) => {
+      if (i === q.correct) card.classList.add("correct");
+      else card.classList.add("muted");
+    });
+    document.querySelector(".timer-ring").style.opacity = 0;
+    document.getElementById("timer-num").style.opacity = 0;
+    document.getElementById("check-badge").classList.add("show");
+
+    const hasReason = !!q.reason;
+    document.getElementById("explanation").style.display = hasReason ? "block" : "none";
+    document.getElementById("explanation").textContent = hasReason ? q.reason : "";
+    document.getElementById("next-line").style.display = hasReason ? "block" : "none";
+    document.getElementById("reveal-panel").classList.add("show");
+  }
+
+  function advance(){
+    cancelAnimationFrame(rafId);
+    qIndex++;
+    if (qIndex >= state.count){
+      finishPlayer();
+      return;
+    }
+    const card = document.getElementById("quiz-card");
+    card.classList.add("transition-out");
+    setTimeout(() => {
+      loadQuestion(qIndex);
+      card.classList.remove("transition-out");
+    }, 320);
+  }
+
+  function finishPlayer(){
+    const lastFill = document.getElementById("seg-fill-" + (state.count - 1));
+    if (lastFill) lastFill.style.width = "100%";
+    document.getElementById("ty-count").textContent = state.count;
+    if (videoURL){
+      bgVideo.pause();
+      bgVideo.classList.remove("show");
+      document.getElementById("bg-scrim").classList.remove("show");
+      document.body.classList.remove("has-video");
+    }
+    setTimeout(() => showScreen("thankyou"), 400);
+  }
+
+  /* ---------------- Thank-you actions ---------------- */
+  document.getElementById("btn-replay").addEventListener("click", () => {
+    if (videoURL){
+      bgVideo.muted = false;
+      bgVideo.currentTime = 0;
+      bgVideo.classList.add("show");
+      document.getElementById("bg-scrim").classList.add("show");
+      document.body.classList.add("has-video");
+      bgVideo.play().catch(() => { bgVideo.muted = true; bgVideo.play().catch(() => {}); });
+    }
+    showScreen("intro");
+    startIntroCountdown();
+  });
+
+  document.getElementById("btn-new-quiz").addEventListener("click", () => {
+    bgVideo.pause();
+    bgVideo.classList.remove("show");
+    document.getElementById("bg-scrim").classList.remove("show");
+    document.body.classList.remove("has-video");
+    state.count = 0;
+    state.step = 0;
+    state.questions = [];
+    document.getElementById("count-input").value = "";
+    showScreen("count");
+  });
+
+  /* ---------------- Init ---------------- */
+  applyTheme("amber");
+  buildThemeGrid();
+</script>
+
+</body>
+</html>
